@@ -34,7 +34,13 @@ To configure your Apigee Integrated Portal with SAML and use Auth0 as your Ident
     "last_name": "family_name"
   }
 }
+
+
 ```
+
+### Visual mapping between the two UI
+
+![alt text](./images/SAML-mapping.png)
 
 #### Finalize Integration in Apigee
 
