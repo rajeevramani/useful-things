@@ -1,33 +1,31 @@
 # How to Configure Auth0 SAML SSO for Apigee X Integrated Developer Portal
 
-## 1. Retrieve Service Provider (SP) Metadata from Apigee
+To configure your Apigee Integrated Portal with SAML and use Auth0 as your Identity Provider (IDP), you'll need to set up the SAML connection on both Apigee and Auth0 and exchange metadata between the two systems. This process enables single sign-on (SSO) for your portal users, authenticating them through Auth0 instead of Apigee's built-in IDP.
 
-- Log in to the **Apigee Cloud Console**.
-- Navigate to:
-  `Publish` → `Portals` → *Your Portal* → `Accounts` → `Authentication`
-- **Select the SAML identity provider** option.
-- Download or copy the **SP metadata file**.
-- Extract the following from the SP metadata:
-  - **Entity ID**: Uniquely identifies Apigee portal as a SAML service provider.
-  - **Assertion Consumer Service (ACS) URL**: The endpoint where Auth0 should send SAML assertions.
-  - **Certificate/public key** (if required for Auth0 to trust the SP; usually not needed unless mutual trust is set up)
+### Steps for SAML Integration
 
-> **Tip:**
-> The ACS URL is typically found as the value of the `Location` property in the metadata under `<md:AssertionConsumerService ... />`.
+#### Configure Service Provider (Apigee)
 
-## 2. Create and Configure SAML Connection in Auth0
+- In the Apigee UI, go to **Publish > Portals**.
+- Select your portal and open the **Accounts** section.
+- Under the **Authentication** tab, choose **Identity Providers > SAML** and enable it.
+- Save the configuration, then access and download the Apigee SAML Service Provider (SP) metadata XML.
+- From the metadata file, locate the `AssertionConsumerService` URL; you’ll need this for setting up Auth0.
 
-- In the **Auth0 Dashboard**:
-  - Go to: `Applications` → *Your Application* → `Addons` → `SAML2 Web App`
-  - **Enable** the SAML2 Web App Addon, open the **Settings** tab.
+#### Configure Identity Provider (Auth0)
 
-### In the JSON configuration, set the following (replace placeholders as needed):
+- In Auth0, create a new Application for this integration under **Applications**.
+- Go to **Add Ons** on that Application and enable **SAML2 WEB APP**.
+- In the SAML2 WEB APP settings:
+  - Set the **Application Callback URL** to the Apigee AssertionConsumerService URL.
+  - Download the Auth0 certificate (PEM format) to be uploaded in Apigee’s SAML configuration.
+  - The **Issuer** becomes the IdP entity ID and the **Identity Provider Login URL** becomes the sign-in URL for Apigee. Copy both values for Apigee's SAML setup.
+  - Auth0 expects a SAML `nameidentifier` to be an email. You may need to create a rule in Auth0 to map `nameid` to the user’s email address.
+
+#### In the JSON configuration of the setting popup, set the following (replace placeholders as needed)
 
 ```json
 {
-  "audience":     "REPLACE_WITH_APIGEE_ENTITY_ID",
-  "recipient":    "REPLACE_WITH_APIGEE_ACS_URL",
-  "destination":  "REPLACE_WITH_APIGEE_ACS_URL",
   "nameIdentifierFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
   "nameIdentifierProbes": [ "email" ],
   "mappings": {
@@ -38,39 +36,20 @@
 }
 ```
 
-- **audience**: Entity ID copied from the Apigee SP metadata.
-- **recipient**: ACS URL copied from the Apigee SP metadata.
-- **destination**: ACS URL copied from the Apigee SP metadata.
-- **nameIdentifierFormat**: Always `"urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"` for Apigee.
-- **nameIdentifierProbes**: Ensure the user's email is placed as NameID.
-- **mappings**: These must match Apigee's expected attribute names exactly.
+#### Finalize Integration in Apigee
 
-## 3. Confirm/Set NameID Mapping
+- In the Apigee SAML setup, enter the Auth0 **Sign-in URL**, **IdP Entity ID**, and upload the Auth0 certificate.
+- Save your configuration. You should now see a "Login with SAML" option on your developer portal sign-in page.
 
-- **Verify** in Auth0 that the SAML `NameID` is set to the user's email and the format is as above. This is handled by the `"nameIdentifierFormat"` and `"nameIdentifierProbes"` configuration.
+#### Testing and Troubleshooting
 
-## 4. Upload the Auth0 Signing Certificate to Apigee
+- Test the integration by signing in through the SAML option on your portal.
+- Use browser developer tools and Auth0 logs if you need to debug any SSO errors during login.
 
-- **Download the Auth0 signing certificate** (in PEM format) from the SAML Addon settings, if not already present.
-- In Apigee, go to your portal's SAML IdP settings and **upload this certificate** so that Apigee can validate Auth0's signed assertions.
+### Tips and Notes
 
-## 5. Enable SAML, Save, and Test
+- If needed, you can disable Apigee’s built-in identity provider so only SAML authentication is used, but at least one provider must stay enabled for user sign-in.
+- Refer to Auth0's dashboard for additional configuration options and metadata details, especially for custom domains or organization-specific SSO.
+- Apigee documentation and Auth0's SAML setup guides offer further details for advanced scenarios.
 
-- **Enable the SAML identity provider** in Apigee and **save** the configuration.
-- In Auth0, confirm that the SAML connection is enabled and the Addon is active for your application.
-- **Test your integration** by logging in to the Apigee developer portal using SSO.
-- Make sure users are provisioned and attributes (email, first name, last name) are correctly populated.
-
-## 6. Troubleshooting & Best Practices
-
-- **ACS URL is critical:**
-  If the assertion is not POSTed to the correct ACS URL, SSO will fail.
-- **Attributes must be named exactly** as:
-  `email`, `first_name`, `last_name`
-- **NameID must be the user's email** in the correct format.
-- After custom domain changes in Apigee, **re-download SP metadata and update Auth0** with any new/changed URLs.
-- **Do not replay SAML assertions**—start each test/login fresh.
-
----
-
-**By following this step-by-step guide, and using all the fields from Apigee SP metadata (especially the ACS URL), your SAML SSO integration will be robust and fully compliant with Apigee X requirements.**
+This configuration allows you full control over user management, leverages centralized Auth0 identity, and enables seamless SSO across Apigegee portals.
