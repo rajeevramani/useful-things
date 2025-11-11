@@ -1,5 +1,9 @@
 # How to Configure Auth0 SAML SSO for Apigee X Integrated Developer Portal
 
+## Overview
+
+To configure your Apigee Integrated Portal with SAML and use Auth0 as your Identity Provider (IDP), you'll need to set up the SAML connection on both Apigee and Auth0 and exchange metadata between the two systems. This process enables single sign-on (SSO) for your portal users, authenticating them through Auth0 instead of Apigee's built-in IDP.
+
 ## 1. Retrieve Service Provider (SP) Metadata from Apigee
 
 - Log in to the **Apigee Cloud Console**.
@@ -18,10 +22,17 @@
 ## 2. Create and Configure SAML Connection in Auth0
 
 - In the **Auth0 Dashboard**:
-  - Go to: `Applications` → *Your Application* → `Addons` → `SAML2 Web App`
-  - **Enable** the SAML2 Web App Addon, open the **Settings** tab.
+  - Go to: `Applications` → *Your Application* (or create a new Application for this integration)
+  - Navigate to `Addons` → `SAML2 Web App`
+  - **Enable** the SAML2 Web App Addon and open the **Settings** tab.
 
-### In the JSON configuration, set the following (replace placeholders as needed):
+### Set the Application Callback URL
+
+- In the SAML2 Web App settings, set the **Application Callback URL** to the **Apigee AssertionConsumerService (ACS) URL** that you copied from the SP metadata in Step 1.
+
+### Configure the JSON Settings
+
+In the JSON configuration section, set the following (replace placeholders as needed):
 
 ```json
 {
@@ -45,21 +56,39 @@
 - **nameIdentifierProbes**: Ensure the user's email is placed as NameID.
 - **mappings**: These must match Apigee's expected attribute names exactly.
 
+### Gather Auth0 Identity Provider Information
+
+After saving the SAML2 Web App configuration, you'll need to copy the following values from Auth0 to configure Apigee:
+
+- **Download the Auth0 signing certificate** (in PEM format) - you'll upload this to Apigee
+- **Copy the Issuer** - this becomes the **IdP Entity ID** for Apigee
+- **Copy the Identity Provider Login URL** - this becomes the **Sign-in URL** for Apigee
+
+> **Note:** Auth0 expects the SAML `nameidentifier` to be an email address. The `nameIdentifierProbes` configuration above handles this by mapping the user's email to the NameID field. If you encounter issues, you may need to create a rule in Auth0 to explicitly map `nameid` to the user's email address.
+
 ## 3. Confirm/Set NameID Mapping
 
 - **Verify** in Auth0 that the SAML `NameID` is set to the user's email and the format is as above. This is handled by the `"nameIdentifierFormat"` and `"nameIdentifierProbes"` configuration.
 
-## 4. Upload the Auth0 Signing Certificate to Apigee
+## 4. Complete the Apigee SAML Configuration
 
-- **Download the Auth0 signing certificate** (in PEM format) from the SAML Addon settings, if not already present.
-- In Apigee, go to your portal's SAML IdP settings and **upload this certificate** so that Apigee can validate Auth0's signed assertions.
+Now you'll finalize the integration in Apigee by entering the Auth0 Identity Provider details:
+
+- In Apigee, navigate back to:
+  `Publish` → `Portals` → *Your Portal* → `Accounts` → `Authentication` → `Identity Providers` → `SAML`
+- Enter the following information from Auth0:
+  - **Sign-in URL**: The Identity Provider Login URL from Auth0
+  - **IdP Entity ID**: The Issuer from Auth0
+  - **Certificate**: Upload the Auth0 signing certificate (PEM format) so that Apigee can validate Auth0's signed assertions
+- **Save** the configuration.
 
 ## 5. Enable SAML, Save, and Test
 
 - **Enable the SAML identity provider** in Apigee and **save** the configuration.
 - In Auth0, confirm that the SAML connection is enabled and the Addon is active for your application.
-- **Test your integration** by logging in to the Apigee developer portal using SSO.
-- Make sure users are provisioned and attributes (email, first name, last name) are correctly populated.
+- Navigate to your Apigee developer portal sign-in page. You should now see a **"Login with SAML"** option.
+- **Test your integration** by clicking the "Login with SAML" button and authenticating through Auth0.
+- Verify that users are provisioned correctly and attributes (email, first name, last name) are populated as expected.
 
 ## 6. Troubleshooting & Best Practices
 
@@ -70,6 +99,10 @@
 - **NameID must be the user's email** in the correct format.
 - After custom domain changes in Apigee, **re-download SP metadata and update Auth0** with any new/changed URLs.
 - **Do not replay SAML assertions**—start each test/login fresh.
+- **Debugging SSO errors:**
+  - Use browser developer tools (Network tab) to inspect SAML requests and responses
+  - Check Auth0 logs for authentication errors and SAML assertion details
+  - Review Apigee portal logs for any validation errors
 
 ---
 
